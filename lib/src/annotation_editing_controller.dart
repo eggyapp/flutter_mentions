@@ -9,7 +9,7 @@ class AnnotationEditingController extends TextEditingController {
   // Generate the Regex pattern for matching all the suggestions in one.
   AnnotationEditingController(this._mapping)
       : _pattern = _mapping.keys.isNotEmpty
-            ? "(${_mapping.keys.map((key) => RegExp.escape(key)).join('|')})"
+            ? "(?<!\\w)(${_mapping.keys.map((key) => RegExp.escape(key)).join('|')})\\b"
             : null;
 
   /// Can be used to get the markup from the controller directly.
@@ -17,23 +17,24 @@ class AnnotationEditingController extends TextEditingController {
     final someVal = _mapping.isEmpty
         ? text
         : text.splitMapJoin(
-            RegExp('$_pattern'),
+            RegExp('$_pattern', caseSensitive: false),
             onMatch: (Match match) {
-              final mention = _mapping[match[0]!] ??
-                  _mapping[_mapping.keys.firstWhere((element) {
-                    final reg = RegExp(element);
+              final matchedWord = match[0]!;
+              final mappingEntries = _mapping.entries;
 
-                    return reg.hasMatch(match[0]!);
-                  })]!;
+              final matchedEntry = mappingEntries.firstWhere((entry) {
+                return entry.key.toLowerCase() == matchedWord.toLowerCase();
+              });
+
+              final mention = matchedEntry.value;
 
               // Default markup format for mentions
               if (!mention.disableMarkup) {
                 return mention.markupBuilder != null
-                    ? mention.markupBuilder!(
-                        mention.trigger, mention.id!, mention.display!)
+                    ? mention.markupBuilder!(mention.trigger, mention.id!, mention.display!)
                     : '${mention.trigger}[__${mention.id}__](__${mention.display}__)';
               } else {
-                return match[0]!;
+                return matchedWord;
               }
             },
             onNonMatch: (String text) {
@@ -51,7 +52,7 @@ class AnnotationEditingController extends TextEditingController {
   set mapping(Map<String, Annotation> _mapping) {
     this._mapping = _mapping;
 
-    _pattern = "(${_mapping.keys.map((key) => RegExp.escape(key)).join('|')})";
+    _pattern = "(?<!\\w)(${_mapping.keys.map((key) => RegExp.escape(key)).join('|')})\\b";
   }
 
   @override
@@ -62,20 +63,21 @@ class AnnotationEditingController extends TextEditingController {
       children.add(TextSpan(text: text, style: style));
     } else {
       text.splitMapJoin(
-        RegExp('$_pattern'),
+        RegExp('$_pattern', caseSensitive: false),
         onMatch: (Match match) {
-          if (_mapping.isNotEmpty) {
-            final mention = _mapping[match[0]!] ??
-                _mapping[_mapping.keys.firstWhere((element) {
-                  final reg = RegExp(element);
+          final matchedWord = match[0]!;
 
-                  return reg.hasMatch(match[0]!);
-                })]!;
+          if (_mapping.isNotEmpty) {
+            final mappingEntries = _mapping.entries;
+
+            final matchedEntry = mappingEntries.firstWhere((entry) {
+              return entry.key.toLowerCase() == matchedWord.toLowerCase();
+            });
 
             children.add(
               TextSpan(
-                text: match[0],
-                style: style!.merge(mention.style),
+                text: matchedEntry.key,
+                style: style!.merge(matchedEntry.value.style),
               ),
             );
           }

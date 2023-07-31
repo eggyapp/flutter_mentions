@@ -7,6 +7,7 @@ class FlutterMentions extends StatefulWidget {
     this.defaultText,
     this.suggestionPosition = SuggestionPosition.Bottom,
     this.suggestionListHeight = 300.0,
+    this.suggestionListPadding = EdgeInsets.zero,
     this.onMarkupChanged,
     this.onMentionAdd,
     this.onSearchChanged,
@@ -83,6 +84,11 @@ class FlutterMentions extends StatefulWidget {
   ///
   /// Defaults to `300.0`
   final double suggestionListHeight;
+
+  /// The padding of the suggestion list
+  ///
+  /// Defaults to `EdgeInsets.zero`
+  final EdgeInsets suggestionListPadding;
 
   /// A Functioned which is triggered when ever the input changes
   /// but with the markup of the selected mentions
@@ -412,34 +418,39 @@ class FlutterMentionsState extends State<FlutterMentions> {
         : widget.mentions[0];
 
     return Container(
-      child: PortalEntry(
-        portalAnchor: widget.suggestionPosition == SuggestionPosition.Bottom
-            ? Alignment.topCenter
-            : Alignment.bottomCenter,
-        childAnchor: widget.suggestionPosition == SuggestionPosition.Bottom
-            ? Alignment.bottomCenter
-            : Alignment.topCenter,
-        portal: ValueListenableBuilder(
+      child: PortalTarget(
+       anchor: Aligned(
+          follower: widget.suggestionPosition == SuggestionPosition.Bottom
+              ? Alignment.topLeft
+              : Alignment.bottomLeft,
+          target: widget.suggestionPosition == SuggestionPosition.Bottom
+              ? Alignment.bottomLeft
+              : Alignment.topLeft,
+        ),
+        portalFollower: ValueListenableBuilder(
           valueListenable: showSuggestions,
           builder: (BuildContext context, bool show, Widget? child) {
             return show && !widget.hideSuggestionList
-                ? OptionList(
-                    suggestionListHeight: widget.suggestionListHeight,
-                    suggestionBuilder: list.suggestionBuilder,
-                    suggestionListDecoration: widget.suggestionListDecoration,
-                    data: list.data.where((element) {
-                      final ele = element['display'].toLowerCase();
-                      final str = _selectedMention!.str
-                          .toLowerCase()
-                          .replaceAll(RegExp(_pattern), '');
+                ? Padding(
+                  padding: widget.suggestionListPadding,
+                  child: OptionList(
+                      suggestionListHeight: widget.suggestionListHeight,
+                      suggestionBuilder: list.suggestionBuilder,
+                      suggestionListDecoration: widget.suggestionListDecoration,
+                      data: list.data.where((element) {
+                        final ele = element['display'].toLowerCase();
+                        final str = _selectedMention!.str
+                            .toLowerCase()
+                            .replaceAll(RegExp(_pattern), '');
 
-                      return ele == str ? false : ele.contains(str);
-                    }).toList(),
-                    onTap: (value) {
-                      addMention(value, list);
-                      showSuggestions.value = false;
-                    },
-                  )
+                        return ele == str ? false : ele.contains(str);
+                      }).toList(),
+                      onTap: (value) {
+                        addMention(value, list);
+                        showSuggestions.value = false;
+                      },
+                    ),
+                )
                 : Container();
           },
         ),
